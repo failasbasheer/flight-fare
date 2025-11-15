@@ -60,9 +60,7 @@ export default function HeroSection() {
 
     try {
       const { Cabin_Class, ...payload } = form;
-      const data = await predictFlightPrice(payload);
-
-      // backend returns only { predicted_price: number }
+      const data = await predictFlightPrice(payload); // now returns full PredictionResponse
       setPrediction(data);
     } finally {
       setLoading(false);
@@ -77,7 +75,7 @@ export default function HeroSection() {
       <section className="relative h-[100vh] w-full overflow-hidden flex items-center">
         <Image
           alt="bg"
-          src={"https://images.pexels.com/photos/358319/pexels-photo-358319.jpeg"}
+          src="https://images.pexels.com/photos/358319/pexels-photo-358319.jpeg"
           width={1920}
           height={1080}
           className="absolute inset-0 w-full h-full object-cover"
@@ -111,6 +109,8 @@ export default function HeroSection() {
               <h3 className="text-xl font-semibold mb-4">Check Flight Price</h3>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                
+                {/* CABIN + AIRLINE */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-semibold">Cabin Class</label>
@@ -138,6 +138,7 @@ export default function HeroSection() {
                   />
                 </div>
 
+                {/* SOURCE + DESTINATION */}
                 <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-end">
                   <AutocompleteSelect
                     label="From"
@@ -172,6 +173,7 @@ export default function HeroSection() {
                   />
                 </div>
 
+                {/* STOPS + TIME SLOT */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-semibold">Stops</label>
@@ -202,6 +204,7 @@ export default function HeroSection() {
                   </div>
                 </div>
 
+                {/* DATE */}
                 <div>
                   <label className="text-xs font-semibold">Date</label>
                   <input

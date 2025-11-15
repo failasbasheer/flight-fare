@@ -1,12 +1,12 @@
 // lib/api.ts
-import { FlightInput } from "@/types/flight";
+import { FlightInput, PredictionResponse } from "@/types/flight";
 
 const BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "https://flightfare-backend.onrender.com";
 
 export async function predictFlightPrice(
   payload: FlightInput
-): Promise<{ predicted_price: number }> {
+): Promise<PredictionResponse> {
   const res = await fetch(`${BASE_URL}/predict`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
