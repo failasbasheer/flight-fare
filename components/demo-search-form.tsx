@@ -240,24 +240,48 @@ import { predictFlightPrice } from "@/lib/api";
 import { FlightInput } from "@/types/flight";
 import { motion } from "framer-motion";
 
-// MUST MATCH BACKEND EXACTLY
-const AIRLINES = [
-  "Jet Airways",
-  "IndiGo",
-  "Air India",
-  "Multiple carriers",
-  "SpiceJet",
-  "Vistara",
-  "Air Asia",
-  "GoAir",
-  "Jet Airways Business",
-  "Multiple carriers Premium economy",
-  "Vistara Premium economy",
-  "Trujet",
+// -------------------------------------------------------------
+// CABIN CLASS MAPPINGS (MATCHES YOUR DATASET REALITY)
+// -------------------------------------------------------------
+const CABIN_CLASSES = [
+  { label: "Economy", value: "economy" },
+  { label: "Premium Economy", value: "premium" },
+  { label: "Business", value: "business" },
 ];
 
+// Airlines grouped by available cabin class
+const AIRLINE_BY_CLASS: Record<string, string[]> = {
+  economy: [
+    "Jet Airways",
+    "IndiGo",
+    "Air India",
+    "Multiple carriers",
+    "SpiceJet",
+    "Vistara",
+    "Air Asia",
+    "GoAir",
+    "Trujet",
+  ],
+  premium: [
+    "Multiple carriers Premium economy",
+    "Vistara Premium economy",
+  ],
+  business: ["Jet Airways Business"],
+};
+
+// -------------------------------------------------------------
+// DATASET-CORRECT AIRPORT + STOP OPTIONS
+// -------------------------------------------------------------
 const SOURCES = ["Banglore", "Kolkata", "Delhi", "Chennai", "Mumbai"];
-const DESTINATIONS = ["New Delhi", "Banglore", "Cochin", "Kolkata", "Delhi", "Hyderabad"];
+
+const DESTINATIONS = [
+  "New Delhi",
+  "Banglore",
+  "Cochin",
+  "Kolkata",
+  "Delhi",
+  "Hyderabad",
+];
 
 const STOPS = ["non-stop", "1 stop", "2 stops", "3 stops", "4 stops"];
 
@@ -269,14 +293,20 @@ const TIME_SLOTS = [
   { label: "Night (11 PM–1 AM)", value: "night" },
 ];
 
+// -------------------------------------------------------------
+// COMPONENT
+// -------------------------------------------------------------
+type FormState = FlightInput & { Cabin_Class: string };
+
 export default function DemoSearchForm() {
-  const [form, setForm] = useState<FlightInput>({
+  const [form, setForm] = useState<FormState>({
     Airline: "",
     Source: "",
     Destination: "",
     Total_Stops: "",
     Date_of_Journey: "",
     Time_Slot: "",
+    Cabin_Class: "",
   });
 
   const [prediction, setPrediction] = useState<{ predicted_price: number } | null>(
@@ -285,17 +315,17 @@ export default function DemoSearchForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const update = (key: keyof FlightInput, value: string) => {
+  const update = (key: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
     setPrediction(null);
+    setError("");
 
-    // Validation
     if (
+      !form.Cabin_Class ||
       !form.Airline ||
       !form.Source ||
       !form.Destination ||
@@ -303,13 +333,16 @@ export default function DemoSearchForm() {
       !form.Date_of_Journey ||
       !form.Time_Slot
     ) {
-      setError("Please fill in all required fields.");
+      setError("Please fill all fields.");
       return;
     }
 
     setLoading(true);
     try {
-      const data = await predictFlightPrice(form);
+      // Remove Cabin_Class (not sent to backend)
+      const { Cabin_Class, ...payload } = form;
+
+      const data = await predictFlightPrice(payload);
       setPrediction(data);
     } catch (err: any) {
       setError(err.message || "Something went wrong.");
@@ -318,27 +351,57 @@ export default function DemoSearchForm() {
     }
   };
 
+  // filtered airlines
+  const airlineOptions = form.Cabin_Class
+    ? AIRLINE_BY_CLASS[form.Cabin_Class]
+    : [];
+
   return (
     <div className="grid md:grid-cols-2 gap-8">
-      {/* FORM */}
+
+      {/* LEFT SIDE FORM */}
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.3 }}
         transition={{ duration: 0.5 }}
       >
-        <Card className="p-6 md:p-8 bg-card border rounded-2xl shadow-md">
+        <Card className="p-6 md:p-8 rounded-2xl shadow-md border bg-card">
           <h3 className="text-xl font-bold mb-2">Flight Price Prediction</h3>
           <p className="text-muted-foreground mb-6 text-sm">
             Fill the required details to estimate the fare for your route.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+
+            {/* CABIN CLASS */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Cabin Class
+              </label>
+              <select
+                value={form.Cabin_Class}
+                onChange={(e) => {
+                  update("Cabin_Class", e.target.value);
+                  update("Airline", ""); // reset airline if class changes
+                }}
+                className="w-full px-3 py-2 bg-input border rounded-lg focus:ring-2 focus:ring-primary"
+              >
+                <option value="">Select cabin class</option>
+                {CABIN_CLASSES.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* AIRLINE */}
             <AutocompleteSelect
               label="Airline"
               value={form.Airline}
               onChange={(v) => update("Airline", v)}
-              options={AIRLINES}
+              options={airlineOptions}
             />
 
             {/* SOURCE + DESTINATION */}
@@ -349,6 +412,7 @@ export default function DemoSearchForm() {
                 onChange={(v) => update("Source", v)}
                 options={SOURCES}
               />
+
               <AutocompleteSelect
                 label="Destination"
                 value={form.Destination}
@@ -357,13 +421,13 @@ export default function DemoSearchForm() {
               />
             </div>
 
-            {/* TOTAL STOPS */}
+            {/* STOPS */}
             <div>
               <label className="block text-sm font-medium mb-2">Total Stops</label>
               <select
                 value={form.Total_Stops}
                 onChange={(e) => update("Total_Stops", e.target.value)}
-                className="w-full px-3 py-2 bg-input border rounded-lg focus:ring-2 focus:ring-primary transition-all"
+                className="w-full px-3 py-2 bg-input border rounded-lg focus:ring-2 focus:ring-primary"
               >
                 <option value="">Select stops</option>
                 {STOPS.map((s) => (
@@ -380,7 +444,7 @@ export default function DemoSearchForm() {
               <select
                 value={form.Time_Slot}
                 onChange={(e) => update("Time_Slot", e.target.value)}
-                className="w-full px-3 py-2 bg-input border rounded-lg focus:ring-2 focus:ring-primary transition-all"
+                className="w-full px-3 py-2 bg-input border rounded-lg focus:ring-2 focus:ring-primary"
               >
                 <option value="">Select time slot</option>
                 {TIME_SLOTS.map((slot) => (
@@ -400,11 +464,11 @@ export default function DemoSearchForm() {
                 type="date"
                 value={form.Date_of_Journey}
                 onChange={(e) => update("Date_of_Journey", e.target.value)}
-                className="w-full px-3 py-2 bg-input border rounded-lg focus:ring-2 focus:ring-primary transition-all"
+                className="w-full px-3 py-2 bg-input border rounded-lg focus:ring-2 focus:ring-primary"
               />
             </div>
 
-            {/* ERRORS */}
+            {/* ERROR */}
             {error && (
               <div className="text-destructive bg-destructive/10 p-3 rounded-lg text-sm">
                 {error}
@@ -423,7 +487,7 @@ export default function DemoSearchForm() {
         </Card>
       </motion.div>
 
-      {/* PREDICTION RESULT */}
+      {/* RIGHT SIDE — PREDICTION CARD */}
       <motion.div
         initial={{ opacity: 0, x: 24 }}
         whileInView={{ opacity: 1, x: 0 }}
@@ -431,13 +495,7 @@ export default function DemoSearchForm() {
         transition={{ duration: 0.5 }}
       >
         {prediction ? (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.35 }}
-          >
-            <PredictionCard price={prediction.predicted_price} />
-          </motion.div>
+          <PredictionCard price={prediction.predicted_price} />
         ) : (
           <Card className="p-8 bg-gradient-to-br from-secondary/20 to-accent/20 rounded-2xl h-full flex items-center justify-center shadow-md border-border/60">
             <div className="text-center text-muted-foreground">
