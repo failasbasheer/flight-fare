@@ -1,129 +1,246 @@
-// components/hero-section.tsx
 "use client";
 
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Card } from "@/components/ui/card";
+import AutocompleteSelect from "@/components/autocomplete-select";
 import { Button } from "@/components/ui/button";
-import { motion, useScroll, useTransform } from "framer-motion";
-import { useRef } from "react";
+import { predictFlightPrice } from "@/lib/api";
+import { FlightInput, PredictionResponse } from "@/types/flight";
+import ResultPanel from "@/components/result-panel";
+import Image from "next/image";
+
+const CABIN_CLASSES = [
+  { label: "Economy", value: "economy" },
+  { label: "Premium Economy", value: "premium" },
+  { label: "Business", value: "business" },
+];
+
+const AIRLINE_BY_CLASS: Record<string, string[]> = {
+  economy: ["Jet Airways", "IndiGo", "Air India", "SpiceJet", "Vistara", "Air Asia", "GoAir", "Trujet"],
+  premium: ["Multiple carriers Premium economy", "Vistara Premium economy"],
+  business: ["Jet Airways Business"],
+};
+
+const SOURCES = ["Banglore", "Kolkata", "Delhi", "Chennai", "Mumbai"];
+const DESTINATIONS = ["New Delhi", "Banglore", "Cochin", "Kolkata", "Delhi", "Hyderabad"];
+const STOPS = ["non-stop", "1 stop", "2 stops", "3 stops", "4 stops"];
+
+const TIME_SLOTS = [
+  { label: "Early Morning (5–7 AM)", value: "early_morning" },
+  { label: "Morning (9–11 AM)", value: "morning" },
+  { label: "Afternoon (2–4 PM)", value: "afternoon" },
+  { label: "Evening (7–9 PM)", value: "evening" },
+  { label: "Night (11 PM–1 AM)", value: "night" },
+];
+
+type FormState = FlightInput & { Cabin_Class: string };
 
 export default function HeroSection() {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
+  const [form, setForm] = useState<FormState>({
+    Airline: "",
+    Source: "",
+    Destination: "",
+    Total_Stops: "",
+    Date_of_Journey: "",
+    Time_Slot: "",
+    Cabin_Class: "",
+  });
 
-  const yBg = useTransform(scrollYProgress, [0, 1], [0, 80]);
-  const opacityOverlay = useTransform(scrollYProgress, [0, 1], [1, 0.5]);
+  const [loading, setLoading] = useState(false);
+  const [prediction, setPrediction] = useState<PredictionResponse | null>(null);
 
-  const scrollToDemo = () => {
-    document.getElementById("demo")?.scrollIntoView({ behavior: "smooth" });
+  const update = (k: keyof FormState, v: string) =>
+    setForm((prev) => ({ ...prev, [k]: v }));
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPrediction(null);
+    setLoading(true);
+
+    try {
+      const { Cabin_Class, ...payload } = form;
+      const data = await predictFlightPrice(payload);
+
+      // backend returns only { predicted_price: number }
+      setPrediction(data);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const airlineOptions = form.Cabin_Class ? AIRLINE_BY_CLASS[form.Cabin_Class] : [];
+  const filteredDestinations = DESTINATIONS.filter((d) => d !== form.Source);
+
   return (
-    <section
-      ref={ref}
-      className="relative overflow-hidden bg-gradient-to-b from-background via-card to-background pt-20 pb-20 md:pt-28 md:pb-28"
-    >
-      {/* Decorative gradient blobs */}
-      <motion.div
-        className="absolute inset-0 pointer-events-none"
-        style={{ y: yBg, opacity: opacityOverlay }}
-      >
-        <motion.div
-          animate={{ y: [0, -20, 0] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-10 right-10 w-72 h-72 bg-secondary/25 rounded-full blur-3xl"
+    <>
+      <section className="relative h-[100vh] w-full overflow-hidden flex items-center">
+        <Image
+          alt="bg"
+          src={"https://images.pexels.com/photos/358319/pexels-photo-358319.jpeg"}
+          width={1920}
+          height={1080}
+          className="absolute inset-0 w-full h-full object-cover"
         />
-        <motion.div
-          animate={{ y: [0, 20, 0] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute bottom-10 left-0 w-80 h-80 bg-accent/20 rounded-full blur-3xl"
-        />
-      </motion.div>
 
-      {/* Content */}
-      <div className="max-w-4xl mx-auto px-4 relative z-10 text-center">
-        <motion.div
-          className="mb-6 inline-block px-4 py-2 bg-secondary/20 rounded-full border border-secondary/50"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <span className="text-sm font-semibold text-foreground">
-            ✈️ Powered by Machine Learning
-          </span>
-        </motion.div>
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-transparent" />
 
-        <motion.h1
-          className="text-4xl md:text-6xl font-bold mb-5 text-balance leading-tight"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.05 }}
-        >
-          AI-Powered Flight Fare{" "}
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
-            Prediction API
-          </span>
-        </motion.h1>
-
-        <motion.p
-          className="text-lg md:text-2xl text-muted-foreground mb-10 text-balance"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.15 }}
-        >
-          Predict flight prices instantly using advanced machine learning.
-          Designed for travel platforms, booking engines, and price comparison tools.
-        </motion.p>
-
-        <motion.div
-          className="flex flex-col sm:flex-row gap-4 justify-center"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.25 }}
-        >
-          <Button
-            size="lg"
-            onClick={scrollToDemo}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg px-8 shadow-lg shadow-primary/20"
-          >
-            Try Demo
-          </Button>
-          <a
-            href="https://flightfare-backend.onrender.com/docs"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Button
-              size="lg"
-              variant="outline"
-              className="w-full sm:w-auto rounded-lg px-8"
+        <div className="relative z-10 max-w-7xl mx-auto w-full px-6 grid md:grid-cols-2 gap-10 items-center">
+          <div className="text-white space-y-5">
+            <motion.h1
+              initial={{ opacity: 0, y: 25 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7 }}
+              className="text-5xl md:text-6xl font-bold leading-tight"
             >
-              View API Docs
-            </Button>
-          </a>
-        </motion.div>
+              AI-Powered  
+              <span className="text-primary"> Flight Fare Prediction</span>
+            </motion.h1>
 
-        {/* Stats */}
-        <motion.div
-          className="grid grid-cols-3 gap-6 mt-16 pt-10 border-t border-border"
-          initial={{ opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.35 }}
-        >
-          {[
-            { label: "API Calls", value: "10K+" },
-            { label: "Accuracy", value: "98%" },
-            { label: "Avg Response", value: "50ms" },
-          ].map((stat) => (
-            <div key={stat.label} className="text-center">
-              <div className="text-2xl md:text-3xl font-bold text-primary">
-                {stat.value}
-              </div>
-              <div className="text-xs md:text-sm text-muted-foreground">
-                {stat.label}
-              </div>
-            </div>
-          ))}
-        </motion.div>
-      </div>
-    </section>
+            <p className="text-lg opacity-90">
+              Predict domestic flight prices instantly using Machine Learning.
+            </p>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 35 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.7 }}
+          >
+            <Card className="bg-white/95 backdrop-blur-xl p-6 rounded-2xl shadow-2xl border border-white/30">
+              <h3 className="text-xl font-semibold mb-4">Check Flight Price</h3>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold">Cabin Class</label>
+                    <select
+                      value={form.Cabin_Class}
+                      onChange={(e) => {
+                        update("Cabin_Class", e.target.value);
+                        update("Airline", "");
+                      }}
+                      className="w-full p-2 mt-1 border rounded-lg text-sm"
+                    >
+                      <option value="">Select</option>
+                      {CABIN_CLASSES.map((c) => (
+                        <option key={c.value} value={c.value}>{c.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <AutocompleteSelect
+                    label="Airline"
+                    value={form.Airline}
+                    onChange={(v) => update("Airline", v)}
+                    options={airlineOptions}
+                    compact
+                  />
+                </div>
+
+                <div className="grid grid-cols-[1fr_auto_1fr] gap-3 items-end">
+                  <AutocompleteSelect
+                    label="From"
+                    value={form.Source}
+                    onChange={(v) => {
+                      update("Source", v);
+                      update("Destination", "");
+                    }}
+                    options={SOURCES}
+                    compact
+                  />
+
+                  <button
+                    type="button"
+                    className="p-2 mb-1 rounded-lg border bg-gray-100 hover:bg-gray-200"
+                    onClick={() => {
+                      if (form.Source && form.Destination) {
+                        update("Source", form.Destination);
+                        update("Destination", form.Source);
+                      }
+                    }}
+                  >
+                    ⇄
+                  </button>
+
+                  <AutocompleteSelect
+                    label="To"
+                    value={form.Destination}
+                    onChange={(v) => update("Destination", v)}
+                    options={filteredDestinations}
+                    compact
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold">Stops</label>
+                    <select
+                      value={form.Total_Stops}
+                      onChange={(e) => update("Total_Stops", e.target.value)}
+                      className="w-full p-2 mt-1 border rounded-lg text-sm"
+                    >
+                      <option value="">Stops</option>
+                      {STOPS.map((s) => (
+                        <option key={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold">Time Slot</label>
+                    <select
+                      value={form.Time_Slot}
+                      onChange={(e) => update("Time_Slot", e.target.value)}
+                      className="w-full p-2 mt-1 border rounded-lg text-sm"
+                    >
+                      <option value="">Slot</option>
+                      {TIME_SLOTS.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold">Date</label>
+                  <input
+                    type="date"
+                    value={form.Date_of_Journey}
+                    onChange={(e) => update("Date_of_Journey", e.target.value)}
+                    className="w-full p-2 mt-1 border rounded-lg text-sm"
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  disabled={
+                    loading ||
+                    !form.Cabin_Class ||
+                    !form.Airline ||
+                    !form.Source ||
+                    !form.Destination ||
+                    !form.Date_of_Journey ||
+                    !form.Time_Slot ||
+                    !form.Total_Stops
+                  }
+                  className={`w-full mt-2 text-white rounded-lg py-3 ${
+                    loading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {loading ? "Predicting..." : "Get Price"}
+                </Button>
+              </form>
+            </Card>
+          </motion.div>
+        </div>
+      </section>
+
+      {prediction && (
+        <div className="px-6 max-w-7xl mx-auto">
+          <ResultPanel prediction={prediction} form={form} />
+        </div>
+      )}
+    </>
   );
 }

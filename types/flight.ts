@@ -1,10 +1,34 @@
 // types/flight.ts
 
 export interface FlightInput {
-  Airline: string;           // MUST match backend airline_map keys
-  Source: string;            // MUST match dataset spellings exactly
-  Destination: string;       // MUST match dataset spellings exactly
-  Total_Stops: string;       // "non-stop" | "1 stop" | "2 stops" | ...
-  Date_of_Journey: string;   // "YYYY-MM-DD"
-  Time_Slot: string;         // "early_morning" | "morning" | ...
+  Airline: string;
+  Source: string;
+  Destination: string;
+  Total_Stops: string;
+  Date_of_Journey: string;
+  Time_Slot: string;
+}
+
+// ---- BACKEND RESPONSE TYPES ----
+
+export interface NearbyDayPrice {
+  date: string;
+  price: number;
+}
+
+export interface MultiStopPrice {
+  stops: string;
+  price: number;
+}
+
+export interface AirlineComparison {
+  airline: string;
+  price: number;
+}
+
+export interface PredictionResponse {
+  predicted_price: number;
+  nearby_days: NearbyDayPrice[];
+  multi_stop: MultiStopPrice[];
+  airline_comparison: AirlineComparison[];
 }
